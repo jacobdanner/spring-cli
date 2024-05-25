@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.jline.utils.AttributedString;
@@ -171,9 +172,14 @@ public class GithubCommands extends AbstractSpringCliCommands {
 		else {
 			String loginName = null;
 			try {
-				GitHub gh = new GitHubBuilder().withOAuthToken(host.getOauthToken())
+				GitHub gh = new GitHubBuilder()
+						.withEndpoint(githubHost)
+						.withOAuthToken(host.getOauthToken())
 					.withRateLimitChecker(RATE_LIMIT_CHECKER)
 					.build();
+				if(Objects.isNull(gh) && Objects.isNull(gh.getMyself())) {
+
+				}
 				loginName = gh.getMyself().getLogin();
 				log.debug("Got loginName {}", loginName);
 			}

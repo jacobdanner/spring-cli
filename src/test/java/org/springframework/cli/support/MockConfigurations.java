@@ -19,7 +19,6 @@ package org.springframework.cli.support;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
