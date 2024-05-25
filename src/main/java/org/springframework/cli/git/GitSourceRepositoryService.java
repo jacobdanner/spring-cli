@@ -16,15 +16,23 @@
 
 package org.springframework.cli.git;
 
-import com.jcraft.jsch.Session;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.eclipse.jgit.api.CloneCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.TransportConfigCallback;
-import org.eclipse.jgit.transport.SshSessionFactory;
-import org.eclipse.jgit.transport.SshTransport;
-import org.eclipse.jgit.transport.Transport;
-import org.eclipse.jgit.transport.ssh.jsch.JschConfigSessionFactory;
-import org.eclipse.jgit.transport.ssh.jsch.OpenSshConfig;
 import org.gitlab4j.api.Constants.ArchiveFormat;
 import org.gitlab4j.api.Constants.SortOrder;
 import org.gitlab4j.api.Constants.TagOrderBy;
@@ -39,6 +47,7 @@ import org.rauschig.jarchivelib.Archiver;
 import org.rauschig.jarchivelib.ArchiverFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.springframework.cli.SpringCliException;
 import org.springframework.cli.config.SpringCliUserConfig;
 import org.springframework.cli.config.SpringCliUserConfig.Host;
@@ -47,20 +56,6 @@ import org.springframework.util.FileSystemUtils;
 import org.springframework.util.ResourceUtils;
 import org.springframework.util.StreamUtils;
 import org.springframework.util.StringUtils;
-
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Retrieve source files from GitHub or GitLab
@@ -112,7 +107,7 @@ public class GitSourceRepositoryService implements SourceRepositoryService {
 				// sourceRepoUrl starts with git:// or ssh://
 				// expectation is that the user has set up the necessary ssh keys on local
 
-				// CloneCommand cloneCommand = new CloneCommand();
+				CloneCommand cloneCommand = new CloneCommand();
 				// cloneCommand.setURI(sourceRepoUrl);
 				// cloneCommand.setCloneAllBranches(false);
 				// cloneCommand.setDirectory(targetPath.toFile());
@@ -144,23 +139,6 @@ public class GitSourceRepositoryService implements SourceRepositoryService {
 		}
 		logger.debug("Source from " + sourceRepoUrl + " retrieved into " + contentPath.toFile().getAbsolutePath());
 		return contentPath;
-	}
-
-	private static class SshTransportConfigCallback implements TransportConfigCallback {
-
-		private final SshSessionFactory sshSessionFactory = new JschConfigSessionFactory() {
-			@Override
-			protected void configure(OpenSshConfig.Host hc, Session session) {
-				session.setConfig("StrictHostKeyChecking", "no");
-			}
-		};
-
-		@Override
-		public void configure(Transport transport) {
-			SshTransport sshTransport = (SshTransport) transport;
-			sshTransport.setSshSessionFactory(sshSessionFactory);
-		}
-
 	}
 
 	/**
