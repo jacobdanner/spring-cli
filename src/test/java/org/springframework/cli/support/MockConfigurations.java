@@ -19,6 +19,8 @@ package org.springframework.cli.support;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 
 import com.google.common.jimfs.Jimfs;
@@ -27,6 +29,7 @@ import org.mockito.Mockito;
 
 import org.springframework.cli.command.BootCommands;
 import org.springframework.cli.command.CommandCommands;
+import org.springframework.cli.command.GithubCommands;
 import org.springframework.cli.command.RoleCommands;
 import org.springframework.cli.command.SpecialCommands;
 import org.springframework.cli.config.SpringCliUserConfig;
@@ -40,10 +43,13 @@ import org.springframework.cli.runtime.engine.model.MavenModelPopulator;
 import org.springframework.cli.runtime.engine.model.ModelPopulator;
 import org.springframework.cli.runtime.engine.model.RootPackageModelPopulator;
 import org.springframework.cli.runtime.engine.model.SystemModelPopulator;
+import org.springframework.cli.util.SpringCliTerminal;
 import org.springframework.cli.util.TerminalMessage;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.shell.component.flow.ComponentFlow;
 import org.springframework.shell.style.ThemeResolver;
+import org.springframework.web.reactive.function.client.WebClient;
 
 public class MockConfigurations {
 
@@ -78,6 +84,19 @@ public class MockConfigurations {
 			BootCommands bootCommands = new BootCommands(springCliUserConfig, sourceRepositoryService,
 					TerminalMessage.noop());
 			return bootCommands;
+		}
+
+		@Bean
+		GithubCommands githubCommands(SpringCliUserConfig springCliUserConfig, Terminal terminal,
+				ThemeResolver themeResolver) {
+
+			SpringCliTerminal spy = Mockito.spy(new SpringCliTerminal(terminal, themeResolver));
+			Mockito.doNothing().when(spy).print(Mockito.anyString());
+
+			GithubCommands githubCommands = new GithubCommands(Mockito.mock(WebClient.Builder.class),
+					Mockito.mock(ComponentFlow.Builder.class), springCliUserConfig, spy);
+
+			return githubCommands;
 		}
 
 		@Bean
@@ -138,6 +157,24 @@ public class MockConfigurations {
 			pcs.setProjectCatalogs(Arrays.asList(pc));
 			Mockito.when(mock.getProjectCatalogs()).thenReturn(pcs);
 			return mock;
+		}
+
+	}
+
+	@Configuration
+	public static class MockFakeUserHostsConfig {
+
+		@Bean
+		SpringCliUserConfig springCliUserConfig() {
+			SpringCliUserConfig testStub = new SpringCliUserConfig();
+			Map<String, SpringCliUserConfig.Host> hostMap = Map.of("github.com",
+					new SpringCliUserConfig.Host("foobar", "foobarUser"), "your.company.codehq.com",
+					new SpringCliUserConfig.Host("foobaz", "foobarUser"));
+			SpringCliUserConfig.Hosts hosts = new SpringCliUserConfig.Hosts();
+			hosts.setHosts(hostMap);
+			testStub.setHosts(hosts);
+			// spy in case we want to verify any interactions
+			return Mockito.spy(testStub);
 		}
 
 	}
