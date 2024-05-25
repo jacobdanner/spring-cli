@@ -17,6 +17,7 @@
 package org.springframework.cli.command;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -78,18 +79,21 @@ public class GithubCommands extends AbstractSpringCliCommands {
 	 * browser or pasting a token created manually.
 	 */
 	@Command(command = "login", description = "Authenticate with GitHub.")
-	public void login() {
+	public void login(@Option(longNames = "github-host",
+			description = "The hostname of your github server, e.g https://your.company.codehq.com",
+			defaultValue = "https://github.com") String githubHost) {
+		URI githubHostUri = validateGithubHost(githubHost);
 		String authType = askAuthType();
 		String clientId = getCliProperties().getGithub().getClientId();
 		String scopes = getCliProperties().getGithub().getDefaultScopes();
 
 		if (ObjectUtils.nullSafeEquals(authType, "web")) {
-			GithubDeviceFlow githubDeviceFlow = new GithubDeviceFlow("https://github.com");
+			GithubDeviceFlow githubDeviceFlow = new GithubDeviceFlow(githubHost);
 			Map<String, String> response = githubDeviceFlow.requestDeviceFlow(webClientBuilder, clientId, scopes);
 
 			AttributedString styledStr = terminal.styledString("!", StyleSettings.TAG_LEVEL_WARN);
-			styledStr = terminal.join(styledStr, terminal.styledString(
-					" Open your browser with https://github.com/login/device and paste the device code ", null));
+			styledStr = terminal.join(styledStr, terminal
+				.styledString(" Open your browser with %s and paste the device code ".formatted(githubHost), null));
 			styledStr = terminal.join(styledStr,
 					terminal.styledString(response.get("user_code"), StyleSettings.TAG_HIGHLIGHT));
 			terminal.print(styledStr);
@@ -98,44 +102,50 @@ public class GithubCommands extends AbstractSpringCliCommands {
 					response.get("device_code"), Integer.parseInt(response.get("expires_in")),
 					Integer.parseInt(response.get("interval")));
 			if (token.isPresent()) {
-				userConfig.updateHost("github.com", new Host(token.get(), null));
-				terminal.print("logged in to GitHub");
+
+				userConfig.updateHost(githubHostUri.getHost(), new Host(token.get(), null));
+				terminal.print("logged in to GitHub - %s".formatted(githubHost));
 			}
 			else {
-				terminal.print("failed logging in to github.");
+				terminal.print("failed logging in to github (%s).".formatted(githubHost));
 			}
 		}
 		else if (ObjectUtils.nullSafeEquals(authType, "paste")) {
-			terminal.print("Tip: you can generate a Personal Access Token here: https://github.com/settings/tokens");
+			terminal
+				.print("Tip: you can generate a Personal Access Token here: %s/settings/tokens".formatted(githubHost));
 			terminal.print("The minimum required scopes are 'repo' and 'read:org'.");
 			String token = askToken();
-			userConfig.updateHost("github.com", new Host(token, null));
-			terminal.print("logged in to GitHub.");
+			userConfig.updateHost(githubHostUri.getHost(), new Host(token, null));
+			terminal.print("logged in to GitHub - %s".formatted(githubHost));
 		}
+	}
+
+	private URI validateGithubHost(final String githubHost) {
+		// TODO: what else do we need here?
+		// maybe wrap in specific springcli exception?
+		return URI.create(githubHost);
 	}
 
 	/**
 	 * Logout command which essentially removes local token if exists.
 	 */
 	@Command(command = "logout", description = "Log out of GitHub.")
-	public void logout() {
-		Host host = null;
-		Map<String, Host> hostsMap = userConfig.getHosts();
-		if (hostsMap == null) {
-			hostsMap = new HashMap<>();
-		}
-		else {
-			host = hostsMap.get("github.com");
-		}
+	public void logout(@Option(longNames = "github-host",
+			description = "The hostname of your github server, e.g https://your.company.codehq.com",
+			defaultValue = "https://github.com") String githubHost) {
+		URI githubHostUri = validateGithubHost(githubHost);
+		Map<String, Host> hostsMap = Optional.ofNullable(userConfig.getHosts()).orElse(new HashMap<>());
+		Host host = hostsMap.get(githubHostUri.getHost());
+
 		if (host == null) {
-			terminal.print("not logged in to GitHub");
+			terminal.print("not logged in to GitHub - %s".formatted(githubHostUri.getHost()));
 		}
 		else {
-			hostsMap.remove("github.com");
+			hostsMap.remove(githubHostUri.getHost());
 			Hosts hosts = new Hosts();
 			hosts.setHosts(hostsMap);
 			userConfig.setHosts(hosts);
-			terminal.print("Removed authentication token.");
+			terminal.print("Removed authentication token for  %s.".formatted(githubHostUri.getHost()));
 		}
 	}
 
@@ -146,14 +156,17 @@ public class GithubCommands extends AbstractSpringCliCommands {
 	 */
 	@Command(command = "status", description = "View authentication status.")
 	public AttributedString status(
-			@Option(longNames = "show-token", description = "Display the auth token.") boolean showToken) {
-		Host host = null;
-		Map<String, Host> hosts = userConfig.getHosts();
-		if (hosts != null) {
-			host = hosts.get("github.com");
-		}
+			@Option(longNames = "show-token", description = "Display the auth token.") boolean showToken,
+			@Option(longNames = "github-host",
+					description = "The hostname of your github server, e.g https://your.company.codehq.com",
+					defaultValue = "https://github.com") String githubHost) {
+
+		URI githubHostUri = validateGithubHost(githubHost);
+		Map<String, Host> hostsMap = Optional.ofNullable(userConfig.getHosts()).orElse(new HashMap<>());
+		Host host = hostsMap.get(githubHostUri.getHost());
+
 		if (host == null) {
-			return new AttributedString("You are not logged into GitHub.");
+			return new AttributedString("You are not logged into GitHub - %s.".formatted(githubHostUri.getHost()));
 		}
 		else {
 			String loginName = null;
@@ -167,7 +180,8 @@ public class GithubCommands extends AbstractSpringCliCommands {
 			catch (IOException ex) {
 				log.error("Error getting GitHub login.", ex);
 			}
-			AttributedString ret = terminal.styledString("You are logged into GitHub as ", null);
+			AttributedString ret = terminal
+				.styledString("You are logged into GitHub(%s) as ".formatted(githubHostUri.getHost()), null);
 			ret = terminal.join(ret, terminal.styledString(loginName, StyleSettings.TAG_HIGHLIGHT));
 			if (showToken) {
 				ret = terminal.join(ret, terminal.styledString(", with token ", null));
