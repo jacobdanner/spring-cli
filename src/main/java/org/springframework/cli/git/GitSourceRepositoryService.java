@@ -39,6 +39,7 @@ import org.gitlab4j.api.models.Tag;
 import org.kohsuke.github.GHRepository;
 import org.kohsuke.github.GitHub;
 import org.kohsuke.github.GitHubBuilder;
+import org.openrewrite.shaded.jgit.api.CloneCommand;
 import org.rauschig.jarchivelib.Archiver;
 import org.rauschig.jarchivelib.ArchiverFactory;
 import org.slf4j.Logger;
@@ -83,7 +84,7 @@ public class GitSourceRepositoryService implements SourceRepositoryService {
 		if (sourceRepoUrl.startsWith("file:")) {
 			contentPath = retrieveFileContents(sourceRepoUrl, targetPath);
 		}
-		else {
+		else if (sourceRepoUrl.startsWith("http") || sourceRepoUrl.startsWith("https")) {
 			GitRepoUrlRef gitRepoUrlRef = GitRepoUrlRef.fromUriString(sourceRepoUrl);
 			if (gitRepoUrlRef.getRepoUrl().toString().contains("github.com")) {
 				contentPath = retrieveGitHubRepositoryContents(gitRepoUrlRef, targetPath);
@@ -91,6 +92,22 @@ public class GitSourceRepositoryService implements SourceRepositoryService {
 			else {
 				contentPath = retrieveGitLabRepositoryContents(gitRepoUrlRef, targetPath);
 			}
+		}
+		else {
+			// sourceRepoUrl starts with git:// or ssh://
+			// expectation is that the user has set up the necessary ssh keys on local
+			try {
+				CloneCommand cloneCommand = new CloneCommand();
+				cloneCommand.setURI(sourceRepoUrl);
+				cloneCommand.setCloneAllBranches(false);
+				cloneCommand.setDirectory(targetPath.toFile());
+				cloneCommand.call();
+				contentPath = targetPath;
+			}
+			catch (Exception ex) {
+				throw new SpringCliException("Failed to clone repository: " + ex.getMessage(), ex);
+			}
+
 		}
 		logger.debug("Source from " + sourceRepoUrl + " retrieved into " + contentPath.toFile().getAbsolutePath());
 		return contentPath;

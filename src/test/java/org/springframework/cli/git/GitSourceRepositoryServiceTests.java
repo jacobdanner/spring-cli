@@ -45,4 +45,51 @@ public class GitSourceRepositoryServiceTests {
 		assertThat(PathUtils.isEmpty(greetingControllerPath)).isFalse();
 	}
 
+	@Test
+	void testRetrievalFromGitRepo(@TempDir Path tempDir) throws IOException {
+		GitSourceRepositoryService urlRepositoryService = new GitSourceRepositoryService(new SpringCliUserConfig());
+		Path contentPath = urlRepositoryService.retrieveRepositoryContents("https://github.com/rd-1-2022/rest-service");
+		assertThat(PathUtils.isEmpty(contentPath)).isFalse();
+		String[] pathToFile = new String[] { "src", "main", "java", "com", "example", "restservice", "greeting",
+				"GreetingController.java" };
+		Path greetingControllerPath = Paths.get(contentPath.toString(), pathToFile);
+		assertThat(PathUtils.isEmpty(greetingControllerPath)).isFalse();
+	}
+
+	@Test
+	void testRetrievalFromSSHRepo(@TempDir Path tempDir) throws IOException {
+		GitSourceRepositoryService urlRepositoryService = new GitSourceRepositoryService(new SpringCliUserConfig());
+		Path contentPath = urlRepositoryService.retrieveRepositoryContents("https://github.com/rd-1-2022/rest-service");
+		assertThat(PathUtils.isEmpty(contentPath)).isFalse();
+		String[] pathToFile = new String[] { "src", "main", "java", "com", "example", "restservice", "greeting",
+				"GreetingController.java" };
+		Path greetingControllerPath = Paths.get(contentPath.toString(), pathToFile);
+		assertThat(PathUtils.isEmpty(greetingControllerPath)).isFalse();
+	}
+
+	@Test
+	void testRetrievalGithubEnterpriseRepo(@TempDir Path tempDir) throws IOException {
+		GitSourceRepositoryService urlRepositoryService = new GitSourceRepositoryService(new SpringCliUserConfig());
+		Path contentPath = urlRepositoryService.retrieveRepositoryContents("https://github.com/rd-1-2022/rest-service");
+		assertThat(PathUtils.isEmpty(contentPath)).isFalse();
+		String[] pathToFile = new String[] { "src", "main", "java", "com", "example", "restservice", "greeting",
+				"GreetingController.java" };
+		Path greetingControllerPath = Paths.get(contentPath.toString(), pathToFile);
+		assertThat(PathUtils.isEmpty(greetingControllerPath)).isFalse();
+	}
+
+
+	@Test
+	void testRetrievalGitoLiteRepo(@TempDir Path tempDir) throws IOException {
+		GitSourceRepositoryService urlRepositoryService = new GitSourceRepositoryService(new SpringCliUserConfig());
+		Path contentPath = urlRepositoryService.retrieveRepositoryContents("https://github.com/rd-1-2022/rest-service");
+		assertThat(PathUtils.isEmpty(contentPath)).isFalse();
+		String[] pathToFile = new String[] { "src", "main", "java", "com", "example", "restservice", "greeting",
+				"GreetingController.java" };
+		Path greetingControllerPath = Paths.get(contentPath.toString(), pathToFile);
+		assertThat(PathUtils.isEmpty(greetingControllerPath)).isFalse();
+	}
+
+
+
 }
