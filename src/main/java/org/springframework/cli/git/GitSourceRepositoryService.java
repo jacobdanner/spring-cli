@@ -16,6 +16,38 @@
 
 package org.springframework.cli.git;
 
+import com.jcraft.jsch.Session;
+import org.eclipse.jgit.api.CloneCommand;
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.TransportConfigCallback;
+import org.eclipse.jgit.transport.SshSessionFactory;
+import org.eclipse.jgit.transport.SshTransport;
+import org.eclipse.jgit.transport.Transport;
+import org.eclipse.jgit.transport.ssh.jsch.JschConfigSessionFactory;
+import org.eclipse.jgit.transport.ssh.jsch.OpenSshConfig;
+import org.gitlab4j.api.Constants.ArchiveFormat;
+import org.gitlab4j.api.Constants.SortOrder;
+import org.gitlab4j.api.Constants.TagOrderBy;
+import org.gitlab4j.api.GitLabApi;
+import org.gitlab4j.api.GitLabApiException;
+import org.gitlab4j.api.models.Branch;
+import org.gitlab4j.api.models.Tag;
+import org.kohsuke.github.GHRepository;
+import org.kohsuke.github.GitHub;
+import org.kohsuke.github.GitHubBuilder;
+import org.rauschig.jarchivelib.Archiver;
+import org.rauschig.jarchivelib.ArchiverFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cli.SpringCliException;
+import org.springframework.cli.config.SpringCliUserConfig;
+import org.springframework.cli.config.SpringCliUserConfig.Host;
+import org.springframework.stereotype.Component;
+import org.springframework.util.FileSystemUtils;
+import org.springframework.util.ResourceUtils;
+import org.springframework.util.StreamUtils;
+import org.springframework.util.StringUtils;
+
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -27,32 +59,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
-
-import org.gitlab4j.api.Constants.ArchiveFormat;
-import org.gitlab4j.api.Constants.SortOrder;
-import org.gitlab4j.api.Constants.TagOrderBy;
-import org.gitlab4j.api.GitLabApi;
-import org.gitlab4j.api.GitLabApiException;
-import org.gitlab4j.api.models.Branch;
-import org.gitlab4j.api.models.Tag;
-import org.kohsuke.github.GHRepository;
-import org.kohsuke.github.GitHub;
-import org.kohsuke.github.GitHubBuilder;
-import org.openrewrite.shaded.jgit.api.CloneCommand;
-import org.rauschig.jarchivelib.Archiver;
-import org.rauschig.jarchivelib.ArchiverFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.springframework.cli.SpringCliException;
-import org.springframework.cli.config.SpringCliUserConfig;
-import org.springframework.cli.config.SpringCliUserConfig.Host;
-import org.springframework.stereotype.Component;
-import org.springframework.util.FileSystemUtils;
-import org.springframework.util.ResourceUtils;
-import org.springframework.util.StreamUtils;
-import org.springframework.util.StringUtils;
 
 /**
  * Retrieve source files from GitHub or GitLab
@@ -80,37 +88,79 @@ public class GitSourceRepositoryService implements SourceRepositoryService {
 			throw new SpringCliException("Failed to create temp directory: " + ex.getMessage(), ex);
 		}
 
-		Path contentPath;
-		if (sourceRepoUrl.startsWith("file:")) {
-			contentPath = retrieveFileContents(sourceRepoUrl, targetPath);
-		}
-		else if (sourceRepoUrl.startsWith("http") || sourceRepoUrl.startsWith("https")) {
-			GitRepoUrlRef gitRepoUrlRef = GitRepoUrlRef.fromUriString(sourceRepoUrl);
-			if (gitRepoUrlRef.getRepoUrl().toString().contains("github.com")) {
-				contentPath = retrieveGitHubRepositoryContents(gitRepoUrlRef, targetPath);
+		Path contentPath = null;
+		try {
+			// URI uri = URI.create(sourceRepoUrl);
+			// logger.info("PATH: Scheme" + uri.getScheme());
+
+			if (sourceRepoUrl.startsWith("file:")) {
+				contentPath = retrieveFileContents(sourceRepoUrl, targetPath);
 			}
-			else {
-				contentPath = retrieveGitLabRepositoryContents(gitRepoUrlRef, targetPath);
+
+			if (sourceRepoUrl.startsWith("http") || sourceRepoUrl.startsWith("https")) {
+				GitRepoUrlRef gitRepoUrlRef = GitRepoUrlRef.fromUriString(sourceRepoUrl);
+				if (gitRepoUrlRef.getRepoUrl().toString().contains("github.com")) {
+					contentPath = retrieveGitHubRepositoryContents(gitRepoUrlRef, targetPath);
+				}
+				else {
+					contentPath = retrieveGitLabRepositoryContents(gitRepoUrlRef, targetPath);
+				}
 			}
-		}
-		else {
-			// sourceRepoUrl starts with git:// or ssh://
-			// expectation is that the user has set up the necessary ssh keys on local
-			try {
-				CloneCommand cloneCommand = new CloneCommand();
-				cloneCommand.setURI(sourceRepoUrl);
-				cloneCommand.setCloneAllBranches(false);
-				cloneCommand.setDirectory(targetPath.toFile());
-				cloneCommand.call();
+
+			if (sourceRepoUrl.startsWith("git@") && sourceRepoUrl.endsWith(".git")) {
+
+				// sourceRepoUrl starts with git:// or ssh://
+				// expectation is that the user has set up the necessary ssh keys on local
+
+				// CloneCommand cloneCommand = new CloneCommand();
+				// cloneCommand.setURI(sourceRepoUrl);
+				// cloneCommand.setCloneAllBranches(false);
+				// cloneCommand.setDirectory(targetPath.toFile());
+				// https://dzone.com/articles/accessing-git-repos-with-java-using-ssh-keys
+				// https://www.codeaffine.com/2014/12/09/jgit-authentication/
+				// https://stackoverflow.com/questions/13686643/using-keys-with-jgit-to-access-a-git-repository-securely?noredirect=1&lq=1
+				// cloneCommand.setCredentialsProvider()
+				// cloneCommand.call();
+
+				TransportConfigCallback transportConfigCallback = new SshTransportConfigCallback();
+
+				Git.cloneRepository()
+					.setDirectory(targetPath.toFile())
+					.setTransportConfigCallback(transportConfigCallback)
+					.setURI(sourceRepoUrl)
+					.call();
+
 				contentPath = targetPath;
-			}
-			catch (Exception ex) {
-				throw new SpringCliException("Failed to clone repository: " + ex.getMessage(), ex);
+
 			}
 
 		}
+		catch (Exception ex) {
+			throw new SpringCliException("Failed to clone repository: " + ex.getMessage(), ex);
+		}
+
+		if (Objects.isNull(contentPath)) {
+			throw new SpringCliException("Failed to get project-repository url from git repository: " + sourceRepoUrl);
+		}
 		logger.debug("Source from " + sourceRepoUrl + " retrieved into " + contentPath.toFile().getAbsolutePath());
 		return contentPath;
+	}
+
+	private static class SshTransportConfigCallback implements TransportConfigCallback {
+
+		private final SshSessionFactory sshSessionFactory = new JschConfigSessionFactory() {
+			@Override
+			protected void configure(OpenSshConfig.Host hc, Session session) {
+				session.setConfig("StrictHostKeyChecking", "no");
+			}
+		};
+
+		@Override
+		public void configure(Transport transport) {
+			SshTransport sshTransport = (SshTransport) transport;
+			sshTransport.setSshSessionFactory(sshSessionFactory);
+		}
+
 	}
 
 	/**

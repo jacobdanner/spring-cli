@@ -48,7 +48,17 @@ public class GitSourceRepositoryServiceTests {
 	@Test
 	void testRetrievalFromGitRepo(@TempDir Path tempDir) throws IOException {
 		GitSourceRepositoryService urlRepositoryService = new GitSourceRepositoryService(new SpringCliUserConfig());
-		Path contentPath = urlRepositoryService.retrieveRepositoryContents("https://github.com/rd-1-2022/rest-service");
+		Path contentPath = urlRepositoryService.retrieveRepositoryContents("git@github.com:habuma/spring-ai-rag-example.git");
+		assertThat(PathUtils.isEmpty(contentPath)).isFalse();
+		String[] pathToFile = new String[] { "src", "main", "java", "com", "example", "restservice", "greeting",
+				"GreetingController.java" };
+		Path greetingControllerPath = Paths.get(contentPath.toString(), pathToFile);
+		assertThat(PathUtils.isEmpty(greetingControllerPath)).isFalse();
+	}
+	@Test
+	void testRetrievalFromGitRepoWSubPath(@TempDir Path tempDir) throws IOException {
+		GitSourceRepositoryService urlRepositoryService = new GitSourceRepositoryService(new SpringCliUserConfig());
+		Path contentPath = urlRepositoryService.retrieveRepositoryContents("git@github.com:habuma/spring-ai-examples.git?subPath=spring-ai-multimodal");
 		assertThat(PathUtils.isEmpty(contentPath)).isFalse();
 		String[] pathToFile = new String[] { "src", "main", "java", "com", "example", "restservice", "greeting",
 				"GreetingController.java" };
@@ -57,31 +67,20 @@ public class GitSourceRepositoryServiceTests {
 	}
 
 	@Test
-	void testRetrievalFromSSHRepo(@TempDir Path tempDir) throws IOException {
+	void testRetrievalFromPrivateSSHRepo(@TempDir Path tempDir) throws IOException {
 		GitSourceRepositoryService urlRepositoryService = new GitSourceRepositoryService(new SpringCliUserConfig());
-		Path contentPath = urlRepositoryService.retrieveRepositoryContents("https://github.com/rd-1-2022/rest-service");
+		Path contentPath = urlRepositoryService.retrieveRepositoryContents("git@github.com:jacobdanner/spring-ai.git");
 		assertThat(PathUtils.isEmpty(contentPath)).isFalse();
 		String[] pathToFile = new String[] { "src", "main", "java", "com", "example", "restservice", "greeting",
 				"GreetingController.java" };
 		Path greetingControllerPath = Paths.get(contentPath.toString(), pathToFile);
 		assertThat(PathUtils.isEmpty(greetingControllerPath)).isFalse();
 	}
-
 	@Test
 	void testRetrievalGithubEnterpriseRepo(@TempDir Path tempDir) throws IOException {
+		// TODO: Implement this test
 		GitSourceRepositoryService urlRepositoryService = new GitSourceRepositoryService(new SpringCliUserConfig());
-		Path contentPath = urlRepositoryService.retrieveRepositoryContents("https://github.com/rd-1-2022/rest-service");
-		assertThat(PathUtils.isEmpty(contentPath)).isFalse();
-		String[] pathToFile = new String[] { "src", "main", "java", "com", "example", "restservice", "greeting",
-				"GreetingController.java" };
-		Path greetingControllerPath = Paths.get(contentPath.toString(), pathToFile);
-		assertThat(PathUtils.isEmpty(greetingControllerPath)).isFalse();
-	}
-
-	@Test
-	void testRetrievalGitoLiteRepo(@TempDir Path tempDir) throws IOException {
-		GitSourceRepositoryService urlRepositoryService = new GitSourceRepositoryService(new SpringCliUserConfig());
-		Path contentPath = urlRepositoryService.retrieveRepositoryContents("https://github.com/rd-1-2022/rest-service");
+		Path contentPath = urlRepositoryService.retrieveRepositoryContents("https://github.com/habuma/spring-ai-examples?subPath=vector-store-loader");
 		assertThat(PathUtils.isEmpty(contentPath)).isFalse();
 		String[] pathToFile = new String[] { "src", "main", "java", "com", "example", "restservice", "greeting",
 				"GreetingController.java" };
