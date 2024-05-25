@@ -4,7 +4,7 @@ spring:
     banner-mode: off
   shell:
     config:
-      location: "{userconfig}/springcli"
+      location: "/Users/jdanner/zipwhip/repos/twilio/spring-all/project-init/spring-cli/springcliconfig"
     history:
       name: spring-cli-history.log
     command:
@@ -22,11 +22,11 @@ logging:
   pattern:
     console:
 ## log debug from a cli
-  # file:
-  #   name: shell.log
-  # level:
-  #   root: DEBUG
-  #   org:
-  #     springframework:
-  #       cli: DEBUG
-  #       shell: DEBUG
+  file:
+    name: shell.log
+  level:
+    root: DEBUG
+    org:
+      springframework:
+        cli: DEBUG
+        shell: DEBUG
