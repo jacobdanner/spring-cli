@@ -28,8 +28,10 @@ if (useChecks) {
 
 description = 'Spring Cli'
 group = 'org.springframework.experimental'
-sourceCompatibility = '17'
-
+//sourceCompatibility = '17'
+java {
+	sourceCompatibility = JavaVersion.VERSION_17
+}
 repositories {
 	mavenCentral()
 	mavenLocal()
@@ -248,9 +250,8 @@ node {
 	version = '16.15.0'
 }
 
-compileJava.dependsOn formatMain
-checkFormatIntegrationTest.dependsOn formatIntegrationTest
-checkFormatMain.dependsOn formatMain
+
+
 
 antora {
 	version = '3.2.0-alpha.2'
@@ -320,4 +321,35 @@ task milestoneVersion {
 			throw new GradleException('Version is not a SNAPSHOT version')
 		}
 	}
+}
+
+//compileJava.dependsOn formatMain
+//checkFormatIntegrationTest.dependsOn formatIntegrationTest
+//checkFormatMain.dependsOn formatMain
+//checkFormatTest.dependsOn formatTest
+//compileTestJava.dependsOn formatTest
+//compileIntegrationTestJava.dependsOn formatIntegrationTest
+
+tasks.named('compileJava') {
+	dependsOn 'formatMain'
+}
+
+tasks.named('checkFormatIntegrationTest') {
+	dependsOn 'formatIntegrationTest'
+}
+
+tasks.named('checkFormatMain') {
+	dependsOn 'formatMain'
+}
+
+tasks.named('checkFormatTest') {
+	dependsOn 'formatTest'
+}
+
+tasks.named('compileTestJava') {
+	dependsOn 'formatTest'
+}
+
+tasks.named('compileIntegrationTestJava') {
+	dependsOn 'formatIntegrationTest'
 }

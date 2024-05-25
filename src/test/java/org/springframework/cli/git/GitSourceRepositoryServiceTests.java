@@ -78,7 +78,6 @@ public class GitSourceRepositoryServiceTests {
 		assertThat(PathUtils.isEmpty(greetingControllerPath)).isFalse();
 	}
 
-
 	@Test
 	void testRetrievalGitoLiteRepo(@TempDir Path tempDir) throws IOException {
 		GitSourceRepositoryService urlRepositoryService = new GitSourceRepositoryService(new SpringCliUserConfig());
@@ -89,7 +88,5 @@ public class GitSourceRepositoryServiceTests {
 		Path greetingControllerPath = Paths.get(contentPath.toString(), pathToFile);
 		assertThat(PathUtils.isEmpty(greetingControllerPath)).isFalse();
 	}
-
-
 
 }
