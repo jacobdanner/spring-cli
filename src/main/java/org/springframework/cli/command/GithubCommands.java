@@ -172,14 +172,27 @@ public class GithubCommands extends AbstractSpringCliCommands {
 		else {
 			String loginName = null;
 			try {
-				GitHub gh = new GitHubBuilder()
-						.withEndpoint(githubHost)
-						.withOAuthToken(host.getOauthToken())
-					.withRateLimitChecker(RATE_LIMIT_CHECKER)
-					.build();
-				if(Objects.isNull(gh) && Objects.isNull(gh.getMyself())) {
-
+				GitHubBuilder ghb = new GitHubBuilder().withEndpoint(githubHost);
+				if (Objects.equals("github.com", githubHost)) {
+					ghb = ghb.withOAuthToken(host.getOauthToken());
 				}
+				else {
+					log.info("Loading auth from environment");
+					// user/password
+					// GITHUB_LOGIN=kohsuke
+					// GITHUB_PASSWORD=012345678
+					// To connect via Personal access token:
+					// GITHUB_OAUTH=4d98173f7c075527cb64878561d1fe70
+					// To connect via Personal access token as a user or organization:
+					// GITHUB_LOGIN=my_org
+					// GITHUB_OAUTH=4d98173f7c075527cb64878561d1fe70
+					// To connect via JWT token as a GitHub App
+					// GITHUB_JWT=my_jwt_token
+					ghb = ghb.fromEnvironment();
+				}
+
+				GitHub gh = ghb.withRateLimitChecker(RATE_LIMIT_CHECKER).build();
+				gh.checkApiUrlValidity();
 				loginName = gh.getMyself().getLogin();
 				log.debug("Got loginName {}", loginName);
 			}

@@ -27,12 +27,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.jgit.api.CloneCommand;
 import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.TransportConfigCallback;
+import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.api.errors.InvalidRemoteException;
+import org.eclipse.jgit.api.errors.TransportException;
 import org.gitlab4j.api.Constants.ArchiveFormat;
 import org.gitlab4j.api.Constants.SortOrder;
 import org.gitlab4j.api.Constants.TagOrderBy;
@@ -83,62 +84,44 @@ public class GitSourceRepositoryService implements SourceRepositoryService {
 			throw new SpringCliException("Failed to create temp directory: " + ex.getMessage(), ex);
 		}
 
-		Path contentPath = null;
-		try {
-			// URI uri = URI.create(sourceRepoUrl);
-			// logger.info("PATH: Scheme" + uri.getScheme());
-
-			if (sourceRepoUrl.startsWith("file:")) {
-				contentPath = retrieveFileContents(sourceRepoUrl, targetPath);
-			}
-
-			if (sourceRepoUrl.startsWith("http") || sourceRepoUrl.startsWith("https")) {
-				GitRepoUrlRef gitRepoUrlRef = GitRepoUrlRef.fromUriString(sourceRepoUrl);
-				if (gitRepoUrlRef.getRepoUrl().toString().contains("github.com")) {
-					contentPath = retrieveGitHubRepositoryContents(gitRepoUrlRef, targetPath);
-				}
-				else {
-					contentPath = retrieveGitLabRepositoryContents(gitRepoUrlRef, targetPath);
-				}
-			}
-
-			if (sourceRepoUrl.startsWith("git@") && sourceRepoUrl.endsWith(".git")) {
-
-				// sourceRepoUrl starts with git:// or ssh://
-				// expectation is that the user has set up the necessary ssh keys on local
-
-				CloneCommand cloneCommand = new CloneCommand();
-				// cloneCommand.setURI(sourceRepoUrl);
-				// cloneCommand.setCloneAllBranches(false);
-				// cloneCommand.setDirectory(targetPath.toFile());
-				// https://dzone.com/articles/accessing-git-repos-with-java-using-ssh-keys
-				// https://www.codeaffine.com/2014/12/09/jgit-authentication/
-				// https://stackoverflow.com/questions/13686643/using-keys-with-jgit-to-access-a-git-repository-securely?noredirect=1&lq=1
-				// cloneCommand.setCredentialsProvider()
-				// cloneCommand.call();
-
-				TransportConfigCallback transportConfigCallback = new SshTransportConfigCallback();
-
-				Git.cloneRepository()
-					.setDirectory(targetPath.toFile())
-					.setTransportConfigCallback(transportConfigCallback)
-					.setURI(sourceRepoUrl)
-					.call();
-
-				contentPath = targetPath;
-
-			}
-
+		Path contentPath;
+		if (sourceRepoUrl.startsWith("file:")) {
+			contentPath = retrieveFileContents(sourceRepoUrl, targetPath);
 		}
-		catch (Exception ex) {
-			throw new SpringCliException("Failed to clone repository: " + ex.getMessage(), ex);
+		else {
+			GitRepoUrlRef gitRepoUrlRef = GitRepoUrlRef.fromUriString(sourceRepoUrl);
+			String repoUrl = gitRepoUrlRef.getRepoUrl().toString();
+			if (repoUrl.startsWith("git@") || repoUrl.startsWith("ssh://")) {
+				logger.debug("Cloning from Private Repo {}", repoUrl);
+				contentPath = retrieveProtectedGitRepositoryContents(gitRepoUrlRef, targetPath);
+			}
+			else if (repoUrl.contains("github.com")) {
+				contentPath = retrieveGitHubRepositoryContents(gitRepoUrlRef, targetPath);
+			}
+			else {
+				contentPath = retrieveGitLabRepositoryContents(gitRepoUrlRef, targetPath);
+			}
 		}
-
-		if (Objects.isNull(contentPath)) {
-			throw new SpringCliException("Failed to get project-repository url from git repository: " + sourceRepoUrl);
-		}
-		logger.debug("Source from " + sourceRepoUrl + " retrieved into " + contentPath.toFile().getAbsolutePath());
+		logger.debug("Source from {} retrieved into {}", sourceRepoUrl, contentPath.toFile().getAbsolutePath());
 		return contentPath;
+	}
+
+	private Path retrieveProtectedGitRepositoryContents(GitRepoUrlRef gitRepoUrlRef, Path targetPath) {
+		SshHomeTransportConfigCallback transportConfigCallback = new SshHomeTransportConfigCallback();
+		CloneCommand cloneCommand = Git.cloneRepository()
+			.setDirectory(targetPath.toFile())
+			.setTransportConfigCallback(transportConfigCallback)
+			.setURI(gitRepoUrlRef.getRepoUrl().toString());
+		try (Git cloned = cloneCommand.call()) {
+			logger.debug("Cloned repository from " + gitRepoUrlRef + " into " + cloned.getRepository().getDirectory());
+			return cloned.getRepository().getDirectory().toPath();
+
+		}
+		catch (GitAPIException gitAPIException) {
+			throw new SpringCliException("Failed cloning private repository " + gitRepoUrlRef.getRepoUrl().toString(),
+					gitAPIException);
+		}
+
 	}
 
 	/**

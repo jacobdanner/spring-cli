@@ -83,6 +83,42 @@ public class ProjectCatalogCommandsTests {
 		});
 	}
 
+	@Test
+	void testProjectCatalogCommandGit() {
+		this.contextRunner.run((context) -> {
+			assertThat(context).hasSingleBean(ProjectCatalogCommands.class);
+			ProjectCatalogCommands projectCatalogCommands = context.getBean(ProjectCatalogCommands.class);
+
+			// Get empty table, assert header values
+			verifyEmptyCatalog(projectCatalogCommands);
+			Table table;
+
+			// Add a catalog and assert values
+			List<String> tags = new ArrayList<>();
+			tags.add("spring");
+			tags.add("guide");
+			projectCatalogCommands.catalogAdd("getting-started", "git@github.com:rd-1-2022/spring-gs-catalog.git",
+					"Spring Getting Started Projects", tags);
+			table = (Table) projectCatalogCommands.catalogList(false);
+			System.out.println(table.render(100));
+			TableAssertions.verifyTableValue(table, 1, 0, "getting-started");
+			TableAssertions.verifyTableValue(table, 1, 1, "Spring Getting Started Projects");
+			TableAssertions.verifyTableValue(table, 1, 2, "git@github.com:rd-1-2022/spring-gs-catalog.git");
+			TableAssertions.verifyTableValue(table, 1, 3, "[spring, guide]");
+			assertThat(table.getModel().getRowCount()).isEqualTo(2);
+
+			assertThatThrownBy(() -> {
+				projectCatalogCommands.catalogAdd("getting-started", "git@github.com:rd-1-2022/spring-gs-catalog.git",
+						"Spring Getting Started Projects", tags);
+			}).isInstanceOf(SpringCliException.class)
+				.hasMessageContaining("Catalog named getting-started already exists.  Choose another name.");
+
+			// Remove added catalog
+			projectCatalogCommands.catalogRemove("getting-started");
+			verifyEmptyCatalog(projectCatalogCommands);
+		});
+	}
+
 	private static void verifyEmptyCatalog(ProjectCatalogCommands projectCatalogCommands)
 			throws JsonProcessingException {
 		Table table = (Table) projectCatalogCommands.catalogList(false);

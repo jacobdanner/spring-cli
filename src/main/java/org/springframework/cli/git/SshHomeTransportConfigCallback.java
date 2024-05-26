@@ -23,13 +23,30 @@ import org.eclipse.jgit.transport.SshTransport;
 import org.eclipse.jgit.transport.Transport;
 import org.eclipse.jgit.transport.ssh.jsch.JschConfigSessionFactory;
 import org.eclipse.jgit.transport.ssh.jsch.OpenSshConfig;
+import org.eclipse.jgit.transport.sshd.JGitKeyCache;
+import org.eclipse.jgit.transport.sshd.SshdSessionFactory;
+import org.eclipse.jgit.transport.sshd.SshdSessionFactoryBuilder;
+import org.eclipse.jgit.util.FS;
 
-class SshTransportConfigCallback implements TransportConfigCallback {
+import java.io.File;
+import java.nio.file.Paths;
+
+class SshHomeTransportConfigCallback implements TransportConfigCallback {
+
+	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SshHomeTransportConfigCallback.class);
+	private static final JGitKeyCache keyCache = new JGitKeyCache();
 
 	private final SshSessionFactory sshSessionFactory = new JschConfigSessionFactory() {
 		@Override
-		protected void configure(OpenSshConfig.Host hc, Session session) {
-			session.setConfig("StrictHostKeyChecking", "no");
+		protected void configure(OpenSshConfig.Host host, Session session) {
+			// TODO: clean this up, use Paths.get() instead of File.separator?
+			File homeSshDir = new File(FS.DETECTED.userHome()+File.separator+".ssh");
+			SshdSessionFactory sshSessionFactory = new SshdSessionFactoryBuilder()
+				.setSshDirectory(homeSshDir)
+				.setPreferredAuthentications("publickey")
+				.setHomeDirectory(FS.DETECTED.userHome())
+				.build(keyCache);
+			setInstance(sshSessionFactory);
 		}
 	};
 

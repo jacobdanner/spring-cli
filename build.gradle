@@ -85,11 +85,14 @@ dependencies {
 
 	// TODO: is BSD3/EPL okay?
 	implementation 'org.eclipse.jgit:org.eclipse.jgit'
-	testImplementation 'org.eclipse.jgit:org.eclipse.jgit.junit'
+	implementation 'org.eclipse.jgit:org.eclipse.jgit.pgm'
 	implementation 'org.eclipse.jgit:org.eclipse.jgit.ssh.jsch'
 	implementation 'org.eclipse.jgit:org.eclipse.jgit.archive'
-	implementation 'org.eclipse.jgit:org.eclipse.jgit.junit.http'
-	implementation 'org.eclipse.jgit:org.eclipse.jgit.junit.ssh'
+	implementation 'org.eclipse.jgit:org.eclipse.jgit.ssh.apache'
+
+	testImplementation 'org.eclipse.jgit:org.eclipse.jgit.junit'
+	testImplementation 'org.eclipse.jgit:org.eclipse.jgit.junit.http'
+	testImplementation 'org.eclipse.jgit:org.eclipse.jgit.junit.ssh'
 
 	implementation 'org.openrewrite:rewrite-java-17'
 	implementation 'org.openrewrite:rewrite-maven'
@@ -144,7 +147,9 @@ dependencyManagement {
 		dependency "com.theokanning.openai-gpt3-java:service:${openaiVersion}"
 		dependency "org.commonmark:commonmark:${commonmarkVersion}"
 		dependency "org.eclipse.jgit:org.eclipse.jgit:${jgitVersion}"
+		dependency "org.eclipse.jgit:org.eclipse.jgit.pgm:${jgitVersion}"
 		dependency "org.eclipse.jgit:org.eclipse.jgit.junit:${jgitVersion}"
+		dependency "org.eclipse.jgit:org.eclipse.jgit.ssh.apache:${jgitVersion}"
 		dependency "org.eclipse.jgit:org.eclipse.jgit.ssh.jsch:${jgitVersion}"
 		dependency "org.eclipse.jgit:org.eclipse.jgit.archive:${jgitVersion}"
 		dependency "org.eclipse.jgit:org.eclipse.jgit.junit.http:${jgitVersion}"
