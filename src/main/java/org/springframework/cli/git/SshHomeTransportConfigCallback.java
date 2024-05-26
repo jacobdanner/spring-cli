@@ -16,6 +16,8 @@
 
 package org.springframework.cli.git;
 
+import java.io.File;
+
 import com.jcraft.jsch.Session;
 import org.eclipse.jgit.api.TransportConfigCallback;
 import org.eclipse.jgit.transport.SshSessionFactory;
@@ -28,21 +30,18 @@ import org.eclipse.jgit.transport.sshd.SshdSessionFactory;
 import org.eclipse.jgit.transport.sshd.SshdSessionFactoryBuilder;
 import org.eclipse.jgit.util.FS;
 
-import java.io.File;
-import java.nio.file.Paths;
-
 class SshHomeTransportConfigCallback implements TransportConfigCallback {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SshHomeTransportConfigCallback.class);
+
 	private static final JGitKeyCache keyCache = new JGitKeyCache();
 
 	private final SshSessionFactory sshSessionFactory = new JschConfigSessionFactory() {
 		@Override
 		protected void configure(OpenSshConfig.Host host, Session session) {
 			// TODO: clean this up, use Paths.get() instead of File.separator?
-			File homeSshDir = new File(FS.DETECTED.userHome()+File.separator+".ssh");
-			SshdSessionFactory sshSessionFactory = new SshdSessionFactoryBuilder()
-				.setSshDirectory(homeSshDir)
+			File homeSshDir = new File(FS.DETECTED.userHome() + File.separator + ".ssh");
+			SshdSessionFactory sshSessionFactory = new SshdSessionFactoryBuilder().setSshDirectory(homeSshDir)
 				.setPreferredAuthentications("publickey")
 				.setHomeDirectory(FS.DETECTED.userHome())
 				.build(keyCache);

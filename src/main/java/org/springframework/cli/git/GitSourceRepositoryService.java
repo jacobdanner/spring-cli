@@ -32,8 +32,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.eclipse.jgit.api.CloneCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.api.errors.InvalidRemoteException;
-import org.eclipse.jgit.api.errors.TransportException;
 import org.gitlab4j.api.Constants.ArchiveFormat;
 import org.gitlab4j.api.Constants.SortOrder;
 import org.gitlab4j.api.Constants.TagOrderBy;
