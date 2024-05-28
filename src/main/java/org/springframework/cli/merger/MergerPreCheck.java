@@ -19,6 +19,8 @@ package org.springframework.cli.merger;
 import java.nio.file.Path;
 
 import org.apache.maven.model.Model;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.springframework.cli.SpringCliException;
 import org.springframework.cli.util.JavaUtils;
@@ -33,6 +35,8 @@ import org.springframework.cli.util.JavaUtils;
  * Note, currently only checks Java version compatibility for Maven projects
  */
 public final class MergerPreCheck {
+
+	private static final Logger logger = LoggerFactory.getLogger(MergerPreCheck.class);
 
 	private MergerPreCheck() {
 	}
@@ -52,15 +56,25 @@ public final class MergerPreCheck {
 		if (currentModel == null) {
 			throw new SpringCliException("Working directory does not contain pom.xml");
 		}
-		if (!currentModel.getProperties().containsKey("java.version")) {
-			throw new SpringCliException("Can not determine the Java project version of the current project."
-					+ "  Check that maven property 'java.version' is present in pom.xml");
+		// TODO: adding these properties because otherwise we need the fully effective
+		// maven model
+		String currentJavaVersion = System.getProperty("java.vm.specification.version");
+
+		if (currentModel.getProperties().containsKey("java.version")) {
+			currentModel.getProperties().setProperty("java.version", currentJavaVersion);
+			// throw new SpringCliException("Can not determine the Java project version of
+			// the current project."
+			// + " Check that maven property 'java.version' is present in pom.xml\n {}");
+			logger.warn(
+					"Can not determine the Java project version of the current project."
+							+ " Check that maven property 'java.version' is present in pom.xml" + "\nUsing: {}",
+					currentJavaVersion);
 		}
 		if (!modelToMerge.getProperties().containsKey("java.version")) {
-			throw new SpringCliException(
-					"Can not determine the Java project version of the project to add to the current project."
-							+ "  Check that maven property 'java.version' is present in pom.xml in the Path = "
-							+ toMergeProjectPath.toAbsolutePath());
+			modelToMerge.getProperties().setProperty("java.version", currentJavaVersion);
+			logger.warn("Can not determine the Java project version of the project to add to the {} "
+					+ " Check that maven property 'java.version' is present in pom.xml in the {} Path\nUsing {}",
+					currentJavaVersion, toMergeProjectPath.toAbsolutePath(), currentJavaVersion);
 		}
 		int javaVersion = JavaUtils.getJavaVersion(currentModel.getProperties().getProperty("java.version"));
 		int javaVersionToMerge = JavaUtils.getJavaVersion(modelToMerge.getProperties().getProperty("java.version"));

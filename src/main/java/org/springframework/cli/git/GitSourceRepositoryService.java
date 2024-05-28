@@ -85,7 +85,9 @@ public class GitSourceRepositoryService implements SourceRepositoryService {
 		}
 		else {
 			GitRepoUrlRef gitRepoUrlRef = GitRepoUrlRef.fromUriString(sourceRepoUrl);
-			if (gitRepoUrlRef.getRepoUrl().toString().contains("github.com")) {
+			String host = gitRepoUrlRef.getRepoUrl().getHost();
+			if (gitRepoUrlRef.getRepoUrl().toString().contains("github.com")
+					|| userConfig.getHosts().containsKey(host)) {
 				contentPath = retrieveGitHubRepositoryContents(gitRepoUrlRef, targetPath);
 			}
 			else {
