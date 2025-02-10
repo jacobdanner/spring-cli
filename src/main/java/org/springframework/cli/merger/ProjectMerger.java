@@ -427,6 +427,15 @@ public class ProjectMerger {
 		List<Plugin> plugins = toMergeModelBuild.getPlugins();
 		for (Plugin plugin : plugins) {
 
+			// TODO: rewrite this to make use of newer recipes
+			// Find existing/matching plugins
+			// if not found - AddPlugin
+			// else
+			// 	 check plugin dependencies and executions
+			//   if found, get existing current
+			//         ChangePluginExecutions / ChangePluginConfiguration / ChangePluginDependencies
+
+
 			String configuration = (plugin.getConfiguration() != null)
 					? ConversionUtils.fromDomToString((Xpp3Dom) plugin.getConfiguration()) : null;
 			String dependencies = null;
@@ -471,6 +480,7 @@ public class ProjectMerger {
 
 				if (!CollectionUtils.isEmpty(plugin.getExecutions())) {
 					for (PluginExecution pluginExecution : plugin.getExecutions()) {
+
 //						Recipe addPluginDependencies = new AddPluginDependency(plugin.getGroupId(),
 //								plugin.getArtifactId(), dependency.getGroupId(), dependency.getArtifactId(),
 //								dependency.getVersion());

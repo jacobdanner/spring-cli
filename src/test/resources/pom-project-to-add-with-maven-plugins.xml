@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.example</groupId>
-	<artifactId>centralized-configuration-client</artifactId>
+	<artifactId>this-pom-has-plugin-execution</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>centralized-configuration-client</name>
-	<description>Demo project for Spring Boot</description>
+	<name>this-pom-has-plugin-execution</name>
+	<description>To Merge Pom for Plugin Merge Verification</description>
 	<properties>
 		<java.version>1.8</java.version>
 		<spring-cloud.version>2021.0.0</spring-cloud.version>
