@@ -46,6 +46,7 @@ import org.apache.maven.model.Dependency;
 import org.apache.maven.model.DependencyManagement;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Plugin;
+import org.apache.maven.model.PluginExecution;
 import org.apache.maven.model.Repository;
 import org.apache.tools.ant.util.FileUtils;
 import org.codehaus.plexus.util.DirectoryScanner;
@@ -434,8 +435,14 @@ public class ProjectMerger {
 				dependencies = ConversionUtils.fromDependencyListToString(plugin.getDependencies());
 			}
 
+			String pluginExec = null;
+			if (!currentModelBuild.getPlugins().contains(plugin)
+					&& !CollectionUtils.isEmpty(plugin.getExecutions())) {
+				pluginExec = ConversionUtils.fromPluginExecutionListToString(plugin.getExecutions());
+			}
+
 			Recipe addPluginRecipe = new AddPlugin(plugin.getGroupId(), plugin.getArtifactId(), plugin.getVersion(),
-					configuration, dependencies, null, null);
+					configuration, dependencies, pluginExec, null);
 
 			List<SourceFile> parsedPomFiles = mavenParser.parse(paths, this.currentProjectPath, getExecutionContext())
 				.toList();
@@ -459,6 +466,21 @@ public class ProjectMerger {
 							.getChangeset()
 							.getAllResults();
 						updatePomFile(currentProjectPomPath, result);
+					}
+				}
+
+				if (!CollectionUtils.isEmpty(plugin.getExecutions())) {
+					for (PluginExecution pluginExecution : plugin.getExecutions()) {
+//						Recipe addPluginDependencies = new AddPluginDependency(plugin.getGroupId(),
+//								plugin.getArtifactId(), dependency.getGroupId(), dependency.getArtifactId(),
+//								dependency.getVersion());
+//						parsedPomFiles = mavenParser.parse(paths, this.currentProjectPath, getExecutionContext())
+//								.toList();
+//						List<Result> result = addPluginDependencies
+//								.run(new InMemoryLargeSourceSet(parsedPomFiles), getExecutionContext())
+//								.getChangeset()
+//								.getAllResults();
+//						updatePomFile(currentProjectPomPath, result);
 					}
 				}
 

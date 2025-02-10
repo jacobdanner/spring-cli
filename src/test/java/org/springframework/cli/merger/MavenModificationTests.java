@@ -155,6 +155,68 @@ public class MavenModificationTests {
 		}
 	}
 
+	@Test
+	void mergeProjectToAddPluginDependency(@TempDir Path tempDir) throws Exception {
+		MavenParser mavenParser = MavenParser.builder().build();
+
+		Path mergedPomPath = tempDir.resolve("temp-existing-pom.xml");
+		Path pomExisting = Paths.get("src/test/resources/pom-existing-project.xml");
+
+		// move existing contents into a pom.xml in the temp dir
+		Files.write(mergedPomPath, Files.readAllLines(pomExisting));
+
+		PomReader pomReader = new PomReader();
+		Path pomToMerge = Paths.get("src/test/resources/pom-project-to-add-with-maven-plugins.xml");
+
+		ProjectMerger merger = new ProjectMerger(tempDir.resolve("to"), tempDir.resolve("from"), "foo-project", null);
+		Method mergeMavenPlugins = ReflectionUtils.findMethod(ProjectMerger.class, "mergeMavenPlugins", Path.class,
+				Model.class, Model.class, List.class, MavenParser.class);
+		mergeMavenPlugins.setAccessible(true);
+
+		List<Path> paths = new ArrayList<>();
+		paths.add(mergedPomPath);
+		mergeMavenPlugins.invoke(merger, mergedPomPath, pomReader.readPom(pomExisting.toFile()),
+				pomReader.readPom(pomToMerge.toFile()), paths, mavenParser);
+
+		Model mergedModel = pomReader.readPom(mergedPomPath.toFile());
+		assertThat(mergedModel.getBuild().getPlugins().size()).isEqualTo(4);
+		List<String> expectedPlugins = new ArrayList<>();
+		for (Plugin plugin : mergedModel.getBuild().getPlugins()) {
+			if (plugin.getGroupId().equals("org.apache.maven.plugins")
+					&& plugin.getArtifactId().equals("maven-deploy-plugin")) {
+				assertThat(ConversionUtils.fromDomToString((Xpp3Dom) plugin.getConfiguration()))
+						.contains("<skip>true</skip>");
+				expectedPlugins.add("maven-deploy-plugin");
+			}
+			else if (plugin.getGroupId().equals("org.apache.maven.plugins")
+					&& plugin.getArtifactId().equals("maven-shade-plugin")) {
+				String configurationXML = ConversionUtils.fromDomToString(((Xpp3Dom) plugin.getConfiguration()));
+				assertThat(configurationXML).contains("<createDependencyReducedPom>false</createDependencyReducedPom>");
+				assertThat(configurationXML).contains("<shadedArtifactAttached>true</shadedArtifactAttached>");
+				assertThat(configurationXML).contains("<shadedClassifierName>aws</shadedClassifierName>");
+
+				expectedPlugins.add("maven-shade-plugin");
+			}
+			else if (plugin.getGroupId().equals("org.springframework.boot")
+					&& plugin.getArtifactId().equals("spring-boot-maven-plugin")) {
+				Dependency dep = plugin.getDependencies().iterator().next();
+				assertThat(dep.getGroupId()).isEqualTo("org.springframework.boot.experimental");
+				assertThat(dep.getArtifactId()).isEqualTo("spring-boot-thin-layout");
+
+				expectedPlugins.add("spring-boot-maven-plugin");
+			} else if (plugin.getGroupId().equals("org.openapitools")
+					&& plugin.getArtifactId().equals("openapi-generator-maven-plugin")) {
+				assertThat(plugin.getExecutionsAsMap().containsKey("test-openapi-generate")).isTrue();
+				expectedPlugins.add("openapi-generator-maven-plugin");
+			}
+
+		}
+		assertThat(expectedPlugins).containsExactly("maven-deploy-plugin", "maven-shade-plugin",
+				"spring-boot-maven-plugin", "openapi-generator-maven-plugin");
+	}
+
+
+
 	// private AddManagedDependency getRecipeAddManagedDependency(String groupId, String
 	// artifactId, String version, String scope, String type, String classifier) {
 	// return new AddManagedDependency(groupId, artifactId, version, scope, type,

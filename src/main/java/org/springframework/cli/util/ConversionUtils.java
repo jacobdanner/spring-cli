@@ -22,6 +22,7 @@ import java.util.List;
 import javax.xml.bind.JAXB;
 
 import org.apache.maven.model.Dependency;
+import org.apache.maven.model.PluginExecution;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 
 /**
@@ -46,6 +47,14 @@ public final class ConversionUtils {
 		return xmlString;
 	}
 
+	public static String fromPluginExecutionListToString(List<PluginExecution> pluginExecutions) {
+		StringWriter sw = new StringWriter();
+		PluginExecutions pluginExecs = new PluginExecutions(pluginExecutions);
+		JAXB.marshal(pluginExecs, sw);
+		String xmlString = sw.toString();
+		return xmlString;
+	}
+
 	/*
 	 * IMPORTANT: Because of JAXB, this class must be public and have public setters and
 	 * getters, to produce proper <dependencies> XML segment.
@@ -66,6 +75,27 @@ public final class ConversionUtils {
 			this.dependencies = dependencies;
 		}
 
+	}
+
+	/*
+	 * IMPORTANT: Because of JAXB, this class must be public and have public setters and
+	 * getters, to produce proper <dependencies> XML segment.
+	 */
+	public static class PluginExecutions {
+
+		private List<PluginExecution> pluginExecutions;
+
+		public PluginExecutions(final List<PluginExecution> pluginExecutions) {
+			this.pluginExecutions = pluginExecutions;
+		}
+
+		public List<PluginExecution> getPluginExecutions() {
+			return pluginExecutions;
+		}
+
+		public void setPluginExecutions(final List<PluginExecution> pluginExecutions) {
+			this.pluginExecutions = pluginExecutions;
+		}
 	}
 
 }
