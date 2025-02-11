@@ -16,37 +16,12 @@
 
 package org.springframework.cli.merger;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.Set;
-import java.util.function.Consumer;
-import java.util.regex.Pattern;
-
 import org.apache.commons.io.FilenameUtils;
 import org.apache.maven.model.Build;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.DependencyManagement;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Plugin;
-import org.apache.maven.model.PluginExecution;
 import org.apache.maven.model.Repository;
 import org.apache.tools.ant.util.FileUtils;
 import org.codehaus.plexus.util.DirectoryScanner;
@@ -69,15 +44,14 @@ import org.openrewrite.java.tree.J.Annotation;
 import org.openrewrite.maven.AddDependencyVisitor;
 import org.openrewrite.maven.AddManagedDependency;
 import org.openrewrite.maven.AddPlugin;
-import org.openrewrite.maven.AddPluginDependency;
 import org.openrewrite.maven.AddRepository;
+import org.openrewrite.maven.ChangePluginConfiguration;
+import org.openrewrite.maven.ChangePluginDependencies;
+import org.openrewrite.maven.ChangePluginExecutions;
 import org.openrewrite.maven.ChangePropertyValue;
 import org.openrewrite.maven.MavenParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.yaml.snakeyaml.DumperOptions;
-import org.yaml.snakeyaml.Yaml;
-
 import org.springframework.beans.factory.config.YamlMapFactoryBean;
 import org.springframework.beans.factory.config.YamlProcessor.ResolutionMethod;
 import org.springframework.cli.SpringCliException;
@@ -90,6 +64,33 @@ import org.springframework.cli.util.RootPackageFinder;
 import org.springframework.cli.util.TerminalMessage;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.util.CollectionUtils;
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.Yaml;
+
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 /**
  * Performs the refactoring steps to merge two Spring projects
@@ -424,78 +425,110 @@ public class ProjectMerger {
 		Build currentModelBuild = currentModel.getBuild();
 		Build toMergeModelBuild = toMergeModel.getBuild();
 
-		List<Plugin> plugins = toMergeModelBuild.getPlugins();
-		for (Plugin plugin : plugins) {
+		List<Plugin> pluginsToMerge = toMergeModelBuild.getPlugins();
+		for (Plugin pluginToMerge : pluginsToMerge) {
+			String mergePluginConfiguration = (pluginToMerge.getConfiguration() != null)
+					? ConversionUtils.fromDomToString((Xpp3Dom) pluginToMerge.getConfiguration()) : null;
+			String mergePluginExecutions = CollectionUtils.isEmpty(pluginToMerge.getExecutions()) ? null :
+					 ConversionUtils.fromPluginExecutionListToString(pluginToMerge.getExecutions()) ;
+			String mergePluginDependencies = CollectionUtils.isEmpty(pluginToMerge.getDependencies())
+					? null : ConversionUtils.fromDependencyListToString(pluginToMerge.getDependencies());
 
-			// TODO: rewrite this to make use of newer recipes
-			// Find existing/matching plugins
-			// if not found - AddPlugin
-			// else
-			// 	 check plugin dependencies and executions
-			//   if found, get existing current
-			//         ChangePluginExecutions / ChangePluginConfiguration / ChangePluginDependencies
+			// If Plugin already exists in pom
+			String pluginToMergeKey = Plugin.constructKey(pluginToMerge.getGroupId(), pluginToMerge.getArtifactId());
+			if (currentModelBuild.getPluginsAsMap().containsKey(pluginToMergeKey)) {
+				Plugin currentModelPlugin = currentModelBuild.getPluginsAsMap()
+						.get(pluginToMergeKey);
 
-
-			String configuration = (plugin.getConfiguration() != null)
-					? ConversionUtils.fromDomToString((Xpp3Dom) plugin.getConfiguration()) : null;
-			String dependencies = null;
-			if (!currentModelBuild.getPlugins().contains(plugin)
-					&& !CollectionUtils.isEmpty(plugin.getDependencies())) {
-				dependencies = ConversionUtils.fromDependencyListToString(plugin.getDependencies());
+				mergeExistingMavenBuildPlugin(currentProjectPomPath, paths, mavenParser, pluginToMerge, mergePluginDependencies, currentModelPlugin, mergePluginExecutions, mergePluginConfiguration);
+			} else if (!currentModelBuild.getPlugins().contains(pluginToMerge)) {
+				// Plugin does NOT exist
+				addNewPluginToMavenPom(currentProjectPomPath, paths, mavenParser, pluginToMerge, mergePluginConfiguration, mergePluginDependencies, mergePluginExecutions);
 			}
 
-			String pluginExec = null;
-			if (!currentModelBuild.getPlugins().contains(plugin)
-					&& !CollectionUtils.isEmpty(plugin.getExecutions())) {
-				pluginExec = ConversionUtils.fromPluginExecutionListToString(plugin.getExecutions());
-			}
 
-			Recipe addPluginRecipe = new AddPlugin(plugin.getGroupId(), plugin.getArtifactId(), plugin.getVersion(),
-					configuration, dependencies, pluginExec, null);
 
-			List<SourceFile> parsedPomFiles = mavenParser.parse(paths, this.currentProjectPath, getExecutionContext())
-				.toList();
-			List<Result> resultList = addPluginRecipe
-				.run(new InMemoryLargeSourceSet(parsedPomFiles), getExecutionContext())
-				.getChangeset()
-				.getAllResults();
-			updatePomFile(currentProjectPomPath, resultList);
-
-			if (currentModelBuild.getPluginsAsMap()
-				.containsKey(Plugin.constructKey(plugin.getGroupId(), plugin.getArtifactId()))) {
-				if (!CollectionUtils.isEmpty(plugin.getDependencies())) {
-					for (Dependency dependency : plugin.getDependencies()) {
-						Recipe addPluginDependencies = new AddPluginDependency(plugin.getGroupId(),
-								plugin.getArtifactId(), dependency.getGroupId(), dependency.getArtifactId(),
-								dependency.getVersion());
-						parsedPomFiles = mavenParser.parse(paths, this.currentProjectPath, getExecutionContext())
-							.toList();
-						List<Result> result = addPluginDependencies
-							.run(new InMemoryLargeSourceSet(parsedPomFiles), getExecutionContext())
-							.getChangeset()
-							.getAllResults();
-						updatePomFile(currentProjectPomPath, result);
-					}
-				}
-
-				if (!CollectionUtils.isEmpty(plugin.getExecutions())) {
-					for (PluginExecution pluginExecution : plugin.getExecutions()) {
-
-//						Recipe addPluginDependencies = new AddPluginDependency(plugin.getGroupId(),
-//								plugin.getArtifactId(), dependency.getGroupId(), dependency.getArtifactId(),
-//								dependency.getVersion());
-//						parsedPomFiles = mavenParser.parse(paths, this.currentProjectPath, getExecutionContext())
-//								.toList();
-//						List<Result> result = addPluginDependencies
-//								.run(new InMemoryLargeSourceSet(parsedPomFiles), getExecutionContext())
-//								.getChangeset()
-//								.getAllResults();
-//						updatePomFile(currentProjectPomPath, result);
-					}
-				}
-
-			}
 		}
+
+	}
+
+	private void mergeExistingMavenBuildPlugin(final Path currentProjectPomPath, final List<Path> paths, final MavenParser mavenParser, final Plugin pluginToMerge, final String mergePluginDependencies, final Plugin currentModelPlugin, final String mergePluginExecutions, final String mergePluginConfiguration) throws IOException {
+		// merge dependencies
+		if (Objects.nonNull(mergePluginDependencies)) {
+			updateExistingMavenBuildPluginDependencies(currentProjectPomPath, paths, mavenParser, pluginToMerge, mergePluginDependencies, currentModelPlugin);
+		}
+
+		// merge executions
+		if (Objects.nonNull(mergePluginExecutions)) {
+			updateExistingMavenBuildPluginExecutions(currentProjectPomPath, paths, mavenParser, pluginToMerge, currentModelPlugin, mergePluginExecutions);
+		}
+
+		// merge configurations
+		if (Objects.nonNull(mergePluginConfiguration)) {
+			updateExistingMavenBuildPluginConfiguration(currentProjectPomPath, paths, mavenParser, pluginToMerge, currentModelPlugin, mergePluginConfiguration);
+		}
+	}
+
+	private void updateExistingMavenBuildPluginConfiguration(final Path currentProjectPomPath, final List<Path> paths, final MavenParser mavenParser, final Plugin plugin, final Plugin currentModelPlugin, final String mergePluginConfiguration) throws IOException {
+		String currentPluginConfiguration = (plugin.getConfiguration() != null)
+				? ConversionUtils.fromDomToString((Xpp3Dom) currentModelPlugin.getConfiguration()) : null;
+		List<Result> resultList = new ArrayList<>();
+		List<SourceFile> parsedPomFiles = mavenParser.parse(paths, this.currentProjectPath, getExecutionContext())
+				.toList();
+		ChangePluginConfiguration changePluginConfiguration = new ChangePluginConfiguration(
+				plugin.getGroupId(), plugin.getArtifactId(),
+				mergePluginConfiguration + Optional.ofNullable(currentPluginConfiguration).orElse(""));
+		resultList.addAll(changePluginConfiguration
+			.run(new InMemoryLargeSourceSet(parsedPomFiles), getExecutionContext())
+			.getChangeset()
+			.getAllResults());
+		updatePomFile(currentProjectPomPath, resultList);
+	}
+
+	private void updateExistingMavenBuildPluginExecutions(final Path currentProjectPomPath, final List<Path> paths, final MavenParser mavenParser, final Plugin plugin, final Plugin currentModelPlugin, final String mergePluginExecutions) throws IOException {
+		String currentPluginExecutions = CollectionUtils.isEmpty(currentModelPlugin.getExecutions())
+				? null
+				: ConversionUtils.fromPluginExecutionListToString(currentModelPlugin.getExecutions());
+		ChangePluginExecutions changePluginExecutions = new ChangePluginExecutions(plugin.getGroupId(),
+				plugin.getArtifactId(),
+				Optional.ofNullable(mergePluginExecutions).orElse("") + Optional.ofNullable(currentPluginExecutions).orElse(""));
+		List<Result> resultList = new ArrayList<>();
+		List<SourceFile> parsedPomFiles = mavenParser.parse(paths, this.currentProjectPath, getExecutionContext())
+				.toList();
+		resultList.addAll(changePluginExecutions
+			.run(new InMemoryLargeSourceSet(parsedPomFiles), getExecutionContext())
+			.getChangeset()
+			.getAllResults());
+		updatePomFile(currentProjectPomPath, resultList);
+	}
+
+	private void updateExistingMavenBuildPluginDependencies(final Path currentProjectPomPath, final List<Path> paths, final MavenParser mavenParser, final Plugin plugin, final String mergePluginDependencies, final Plugin currentModelPlugin) throws IOException {
+		String currentPluginDependencies = !CollectionUtils.isEmpty(currentModelPlugin.getDependencies())
+				? ConversionUtils.fromDependencyListToString(currentModelPlugin.getDependencies()) : null;
+
+		ChangePluginDependencies changePluginDependencies = new ChangePluginDependencies(
+				plugin.getGroupId(), plugin.getArtifactId(),
+				mergePluginDependencies + Optional.ofNullable(currentPluginDependencies).orElse(""));
+		List<Result> resultList = new ArrayList<>();
+		List<SourceFile> parsedPomFiles = mavenParser.parse(paths, this.currentProjectPath, getExecutionContext())
+				.toList();
+		resultList.addAll(changePluginDependencies
+			.run(new InMemoryLargeSourceSet(parsedPomFiles), getExecutionContext())
+			.getChangeset()
+			.getAllResults());
+		updatePomFile(currentProjectPomPath, resultList);
+	}
+
+	private void addNewPluginToMavenPom(final Path currentProjectPomPath, final List<Path> paths, final MavenParser mavenParser, final Plugin plugin, final String mergePluginConfiguration, final String mergePluginDependencies, final String mergePluginExecutions) throws IOException {
+		Recipe addPluginRecipe = new AddPlugin(plugin.getGroupId(), plugin.getArtifactId(), plugin.getVersion(),
+				mergePluginConfiguration, mergePluginDependencies, mergePluginExecutions, null);
+		List<Result> resultList = new ArrayList<>();
+		List<SourceFile> parsedPomFiles = mavenParser.parse(paths, this.currentProjectPath, getExecutionContext())
+				.toList();
+		resultList.addAll(addPluginRecipe.run(new InMemoryLargeSourceSet(parsedPomFiles), getExecutionContext())
+			.getChangeset()
+			.getAllResults());
+		updatePomFile(currentProjectPomPath, resultList);
 	}
 
 	private void mergeMavenDependencies(Path currentProjectPomPath, Model currentModel, Model toMergeModel,
@@ -646,8 +679,7 @@ public class ProjectMerger {
 			}
 			else {
 				AddRepository recipeAddRepository = getRecipeAddRepository(candidateRepository.getId(),
-						candidateRepository.getUrl(), candidateRepository.getName(),
-						false, false,
+						candidateRepository.getUrl(), candidateRepository.getName(), false, false,
 						AddRepository.Type.Repository);
 				List<SourceFile> pomFiles = mavenParser.parse(paths, this.currentProjectPath, getExecutionContext())
 					.toList();
@@ -736,7 +768,8 @@ public class ProjectMerger {
 
 	public static AddRepository getRecipeAddRepository(String id, String url, String name, boolean snapshotsEnabled,
 			boolean releasesEnabled, AddRepository.Type repositoryType) {
-		return new AddRepository(id, url, name, null, snapshotsEnabled, null, null, releasesEnabled, null, null, repositoryType);
+		return new AddRepository(id, url, name, null, snapshotsEnabled, null, null, releasesEnabled, null, null,
+				repositoryType);
 	}
 
 }
