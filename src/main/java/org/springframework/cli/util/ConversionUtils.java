@@ -67,10 +67,26 @@ public final class ConversionUtils {
 
 	public static String fromPluginExecutionListToString(List<PluginExecution> pluginExecutions) {
 		StringWriter sw = new StringWriter();
-		PluginExecutions pluginExecs = new PluginExecutions(pluginExecutions);
+		Executions pluginExecs = new Executions(pluginExecutions);
 		JAXB.marshal(pluginExecs, sw);
-		String xmlString = sw.toString();
+		String xmlString = sw.toString().lines().filter(l -> !l.contains("<?xml") &&
+						!l.contains("<priority>0</priority>") &&
+						!l.contains("<id>default</id>"))
+				.collect(Collectors.joining("\n"));
+		System.out.println(xmlString);
 		return xmlString;
+	}
+
+	public static String mergeDependencyListStrings(String first, String second) {
+		return mergeXmlStringLists(first, second, "dependencies");
+	}
+
+
+	private static String mergeXmlStringLists(String first, String second, String topLevelElement) {
+		Objects.requireNonNull(first, "xmlString1 must not be null");
+		Objects.requireNonNull(second, "xmlString2 must not be null");
+
+		return null;// xmlString1 + "\n" + xmlString2;
 	}
 
 	/*
@@ -95,24 +111,20 @@ public final class ConversionUtils {
 
 	}
 
-	/*
-	 * IMPORTANT: Because of JAXB, this class must be public and have public setters and
-	 * getters, to produce proper <dependencies> XML segment.
-	 */
-	public static class PluginExecutions {
+	public static class Executions {
 
-		private List<PluginExecution> pluginExecutions;
+		private List<PluginExecution> execution;
 
-		public PluginExecutions(final List<PluginExecution> pluginExecutions) {
-			this.pluginExecutions = pluginExecutions;
+		public Executions(final List<PluginExecution> pluginExecutions) {
+			this.execution = pluginExecutions;
 		}
 
-		public List<PluginExecution> getPluginExecutions() {
-			return pluginExecutions;
+		public List<PluginExecution> getExecution() {
+			return execution;
 		}
 
-		public void setPluginExecutions(final List<PluginExecution> pluginExecutions) {
-			this.pluginExecutions = pluginExecutions;
+		public void setExecution(final List<PluginExecution> pluginExecutions) {
+			this.execution = pluginExecutions;
 		}
 	}
 
