@@ -29,10 +29,10 @@
         <jackson.version>2.15.0</jackson.version>
         <openai.version>0.12.0</openai.version>
         <commonmark.version>0.21.0</commonmark.version>
-        <maven-checkstyle-plugin.version>3.3.0</maven-checkstyle-plugin.version>
-        <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
-        <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
-        <spring-context.version>1</spring-context.version>
+        <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+        <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
+        <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
+        <spring-context.version>6.1.8</spring-context.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -62,7 +62,7 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
-            <version>6.${spring-context.version}.8</version>
+            <version>${spring-context.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -76,11 +76,6 @@
         <dependency>
             <groupId>io.spring.initializr</groupId>
             <artifactId>initializr-generator</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.projectreactor.addons</groupId>
-            <artifactId>reactor-extra</artifactId>
-            <version>3.5.0</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
@@ -254,8 +249,12 @@
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
                     <useModulePath>false</useModulePath>
+                    <environmentVariables>
+                        <SPRING_CLI_CONFIG_DIR></SPRING_CLI_CONFIG_DIR>
+                    </environmentVariables>
                 </configuration>
             </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
@@ -267,6 +266,68 @@
                     <failsOnError>true</failsOnError>
                 </configuration>
             </plugin>
+
+            <plugin>
+                <groupId>io.github.git-commit-id</groupId>
+                <artifactId>git-commit-id-maven-plugin</artifactId>
+                <version>9.0.2</version>
+                <executions>
+                    <execution>
+                        <id>get-the-git-infos</id>
+                        <goals>
+                            <goal>revision</goal>
+                        </goals>
+                        <phase>initialize</phase>
+                    </execution>
+                </executions>
+                <configuration>
+                    <generateGitPropertiesFile>true</generateGitPropertiesFile>
+                    <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
+                    <commitIdGenerationMode>full</commitIdGenerationMode>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <!-- TODO: needs work for package resolution -->
+                <groupId>org.antora</groupId>
+                <artifactId>antora-maven-plugin</artifactId>
+                <version>1.0.0-alpha.5</version>
+                <configuration>
+                    <options>
+                        <option>clean</option>
+                        <option>stacktrace</option>
+                    </options>
+                    <packages>
+                        <package>antora/atlas-extension@1.0.0-alpha.1</package>
+                            <package>antora/collector-extension@1.0.0-alpha.3</package>
+                            <package>asciidoctor/tabs@1.0.0-beta.3</package>
+                            <package>opendevise/antora-release-line-extension@1.0.0</package>
+                            <package>springio/antora-extensions@1.8.1</package>
+                            <package>springio/asciidoctor-extensions@1.0.0-alpha.9</package>
+                    </packages>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>antora-local</id>
+                        <configuration>
+                            <playbookFile>docs/local-antora-playbook.yml</playbookFile>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>antora-prod</id>
+                        <configuration>
+                            <playbookFile>docs/antora-playbook.yml</playbookFile>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- TODO: Uncomment when Spotless plugin is ready
+            <plugin>
+            <groupId>com.diffplug.spotless</groupId>
+            <artifactId>spotless-maven-plugin</artifactId>
+            <version>${spotless.version}</version>
+            -->
         </plugins>
     </build>
 </project>
