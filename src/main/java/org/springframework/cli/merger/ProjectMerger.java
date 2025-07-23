@@ -702,7 +702,14 @@ public class ProjectMerger {
 
 	public static AddRepository getRecipeAddRepository(String id, String url, String name, boolean snapshotsEnabled,
 			boolean releasesEnabled) {
-		return new AddRepository(id, url, name, null, snapshotsEnabled, null, null, releasesEnabled, null, null);
+		//return new org.openrewrite.maven.
+		return new AddRepository(id, url, name, null, snapshotsEnabled, null, null, releasesEnabled, null, null, AddRepository.Type.Repository);
+	}
+
+	public static AddRepository getRecipeAddPluginRepository(String id, String url, String name, boolean snapshotsEnabled,
+													   boolean releasesEnabled) {
+		//return new org.openrewrite.maven.
+		return new AddRepository(id, url, name, null, snapshotsEnabled, null, null, releasesEnabled, null, null, AddRepository.Type.PluginRepository);
 	}
 
 }

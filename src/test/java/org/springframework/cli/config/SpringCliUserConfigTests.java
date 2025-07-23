@@ -16,6 +16,7 @@
 
 package org.springframework.cli.config;
 
+import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import com.google.common.jimfs.Jimfs;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -46,6 +48,13 @@ public class SpringCliUserConfigTests {
 	public void setupTests() {
 		fileSystem = Jimfs.newFileSystem();
 		pathProvider = (path) -> fileSystem.getPath(path);
+	}
+
+	@AfterEach
+	public void cleanupTests() throws IOException {
+		if (fileSystem != null) {
+			fileSystem.close();
+		}
 	}
 
 	@Test

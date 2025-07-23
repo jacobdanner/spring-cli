@@ -29,9 +29,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.gitlab4j.api.Constants.ArchiveFormat;
-import org.gitlab4j.api.Constants.SortOrder;
-import org.gitlab4j.api.Constants.TagOrderBy;
+import org.gitlab4j.models.Constants.ArchiveFormat;
+import org.gitlab4j.models.Constants.SortOrder;
+import org.gitlab4j.models.Constants.TagOrderBy;
 import org.gitlab4j.api.GitLabApi;
 import org.gitlab4j.api.GitLabApiException;
 import org.gitlab4j.api.models.Branch;

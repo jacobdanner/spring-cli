@@ -16,6 +16,7 @@
 
 package org.springframework.cli.command;
 
+import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -25,6 +26,7 @@ import java.util.function.Function;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.jimfs.Jimfs;
+import jakarta.annotation.PreDestroy;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -104,11 +106,23 @@ public class ProjectCatalogInitializerTests {
 	@EnableConfigurationProperties(SpringCliProjectCatalogProperties.class)
 	static class ProjectCatalogInitializerConfig {
 
+		FileSystem fileSystem = Jimfs.newFileSystem();
+
 		@Bean
 		SpringCliUserConfig springCliUserConfig() {
-			FileSystem fileSystem = Jimfs.newFileSystem();
 			Function<String, Path> pathProvider = (path) -> fileSystem.getPath(path);
 			return new SpringCliUserConfig(pathProvider);
+		}
+
+		@PreDestroy
+		public void closeFileSystem() {
+			if (fileSystem != null) {
+				try {
+					fileSystem.close();
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+			}
 		}
 
 		@Bean
@@ -140,11 +154,22 @@ public class ProjectCatalogInitializerTests {
 	@EnableConfigurationProperties(SpringCliProjectCatalogProperties.class)
 	static class ProjectCatalogInitializerWithExistingCatalogConfig {
 
+		FileSystem fileSystem = Jimfs.newFileSystem();
+
 		@Bean
 		SpringCliUserConfig springCliUserConfig() {
-			FileSystem fileSystem = Jimfs.newFileSystem();
 			Function<String, Path> pathProvider = (path) -> fileSystem.getPath(path);
 			return new SpringCliUserConfig(pathProvider);
+		}
+		@PreDestroy
+		public void closeFileSystem() {
+			if (fileSystem != null) {
+				try {
+					fileSystem.close();
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+			}
 		}
 
 		@Bean

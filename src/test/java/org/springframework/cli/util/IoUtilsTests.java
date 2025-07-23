@@ -22,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import com.google.common.jimfs.Jimfs;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,6 +35,13 @@ public class IoUtilsTests {
 	@BeforeEach
 	public void setupTests() {
 		fileSystem = Jimfs.newFileSystem();
+	}
+
+	@AfterEach
+	public void cleanupTests() throws IOException {
+		if (fileSystem != null) {
+			fileSystem.close();
+		}
 	}
 
 	@Test

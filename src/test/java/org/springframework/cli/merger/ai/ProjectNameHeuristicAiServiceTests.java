@@ -16,6 +16,7 @@
 
 package org.springframework.cli.merger.ai;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -29,6 +30,7 @@ class ProjectNameHeuristicAiServiceTests {
 
 	@Test
 	@Tag(CliTags.AI)
+	@Disabled("Disabled to make the ~/.openai requirement more testable and avoid the need for openai interaction as part of a test")
 	void deriveProjectName() {
 		ProjectNameHeuristicAiService projectNameHeuristic = new ProjectNameHeuristicAiService(TerminalMessage.noop());
 
